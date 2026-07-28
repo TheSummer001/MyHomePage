@@ -2,33 +2,41 @@
 import { siteConfig } from "../config/site";
 import { Icon } from "astro-icon/components";
 
-const links = [
-  { label: "首页", href: "#hero", id: "hero" },
-  { label: "关于我", href: "#about", id: "about" },
-  { label: "音乐", href: "#music", id: "music" },
-  { label: "博客", href: siteConfig.blogUrl, external: true },
-  { label: "资源", href: "#resources", id: "resources" },
-  { label: "动态", href: "#dynamic", id: "dynamic" },
+interface NavItem {
+  name: string;
+  target?: string;
+  href?: string;
+  external?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { name: "首页", target: "hero" },
+  { name: "关于我", target: "about" },
+  { name: "音乐", target: "music" },
+  { name: "博客", href: siteConfig.blogUrl, external: true },
+  { name: "资源", target: "resources" },
+  { name: "动态", target: "dynamic" },
 ];
 ---
 
 <header id="site-header" data-tone="dark" class="site-header fixed inset-x-0 top-0 z-50 border-b border-transparent text-white">
   <div class="mx-auto flex h-(--nav-height) w-[min(100%-2rem,1180px)] items-center justify-between">
-    <a href="#hero" class="group flex items-center gap-3" aria-label="TooonRan 首页">
+    <a href="/" data-scroll-target="hero" class="group flex items-center gap-3" aria-label="TooonRan 首页">
       <span class="grid h-9 w-9 place-items-center border border-current/25 font-display text-xl tracking-wider transition-colors group-hover:border-coral group-hover:text-coral">T</span>
       <span class="text-sm font-semibold tracking-[0.12em]">{siteConfig.brand}</span>
     </a>
 
     <nav class="hidden items-center gap-7 md:flex" aria-label="主导航">
-      {links.map((link) => (
+      {navItems.map((item) => (
         <a
-          href={link.href}
-          data-nav={link.id}
-          target={link.external ? "_blank" : undefined}
-          rel={link.external ? "noreferrer" : undefined}
+          href={item.href ?? "/"}
+          data-scroll-target={item.target}
+          data-nav={item.target}
+          target={item.external ? "_blank" : undefined}
+          rel={item.external ? "noreferrer" : undefined}
           class="relative py-2 text-xs font-medium tracking-[0.12em] opacity-55 transition-opacity hover:opacity-100 data-[active=true]:opacity-100"
         >
-          {link.label}
+          {item.name}
           <span class="absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-coral transition-transform [[data-active=true]_&]:scale-x-100"></span>
         </a>
       ))}
@@ -48,15 +56,16 @@ const links = [
 
   <nav id="mobile-menu" class="invisible fixed inset-x-0 top-(--nav-height) h-[calc(100dvh-var(--nav-height))] translate-y-3 bg-obsidian px-5 py-8 opacity-0 transition-all md:hidden" aria-label="移动端导航">
     <div class="flex flex-col">
-      {links.map((link, index) => (
+      {navItems.map((item, index) => (
         <a
-          href={link.href}
-          data-nav={link.id}
-          target={link.external ? "_blank" : undefined}
-          rel={link.external ? "noreferrer" : undefined}
+          href={item.href ?? "/"}
+          data-scroll-target={item.target}
+          data-nav={item.target}
+          target={item.external ? "_blank" : undefined}
+          rel={item.external ? "noreferrer" : undefined}
           class="flex items-center justify-between border-b border-white/10 py-5 text-2xl font-medium text-white/75"
         >
-          {link.label}
+          {item.name}
           <span class="font-display text-sm tracking-widest text-white/30">{String(index + 1).padStart(2, "0")}</span>
         </a>
       ))}

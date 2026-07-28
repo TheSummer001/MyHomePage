@@ -1,5 +1,6 @@
 const menuToggle = document.querySelector("#menu-toggle");
 const mobileMenu = document.querySelector("#mobile-menu");
+const siteHeader = document.querySelector("#site-header");
 
 function closeMenu() {
   if (!menuToggle || !mobileMenu) return;
@@ -23,42 +24,58 @@ menuToggle?.addEventListener("click", () => {
   document.body.classList.add("menu-open");
 });
 
-document.querySelectorAll('a[href^="#"]').forEach((link) => {
+document.querySelectorAll("[data-scroll-target]").forEach((link) => {
   link.addEventListener("click", (event) => {
-    const target = document.querySelector(link.getAttribute("href"));
+    event.preventDefault();
+
+    const targetId = link.dataset.scrollTarget;
+    const target = targetId ? document.getElementById(targetId) : null;
     if (!target) return;
 
-    event.preventDefault();
     closeMenu();
     target.querySelectorAll(".reveal").forEach((element) => element.classList.add("is-visible"));
-    window.scrollTo({ top: target.offsetTop, behavior: "auto" });
-    history.replaceState(null, "", link.getAttribute("href"));
+
+    const navbarHeight = siteHeader?.getBoundingClientRect().height ?? 80;
+    const elementPosition = target.getBoundingClientRect().top + window.scrollY;
+
+    window.scrollTo({
+      top: Math.max(0, elementPosition - navbarHeight),
+      behavior: "smooth",
+    });
   });
 });
 
-if (location.hash) {
-  const initialTarget = document.querySelector(location.hash);
-  if (initialTarget) {
-    requestAnimationFrame(() => window.scrollTo({ top: initialTarget.offsetTop, behavior: "auto" }));
-  }
-}
-
-const sections = [...document.querySelectorAll("[data-section]")];
 const navLinks = [...document.querySelectorAll("[data-nav]")];
-const siteHeader = document.querySelector("#site-header");
+const sections = [...document.querySelectorAll("[data-section][id]")].filter((section) =>
+  navLinks.some((link) => link.dataset.nav === section.id),
+);
+const visibleSections = new Map();
+
+function updateActiveNav(sectionId) {
+  navLinks.forEach((link) => {
+    link.dataset.active = String(link.dataset.nav === sectionId);
+  });
+}
 
 const sectionObserver = new IntersectionObserver(
   (entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-    if (!visible) return;
-    navLinks.forEach((link) => {
-      link.dataset.active = String(link.dataset.nav === visible.target.id);
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) visibleSections.set(entry.target.id, entry);
+      else visibleSections.delete(entry.target.id);
     });
+
+    const navbarHeight = siteHeader?.getBoundingClientRect().height ?? 80;
+    const visible = [...visibleSections.values()].sort((a, b) => {
+      const ratioDifference = b.intersectionRatio - a.intersectionRatio;
+      if (Math.abs(ratioDifference) > 0.05) return ratioDifference;
+      return Math.abs(a.boundingClientRect.top - navbarHeight) -
+        Math.abs(b.boundingClientRect.top - navbarHeight);
+    })[0];
+    if (!visible) return;
+
+    updateActiveNav(visible.target.id);
   },
-  { rootMargin: "-25% 0px -55%", threshold: [0.05, 0.2, 0.5] },
+  { rootMargin: "-80px 0px -45% 0px", threshold: [0.05, 0.2, 0.5, 0.75] },
 );
 
 sections.forEach((section) => sectionObserver.observe(section));
