@@ -1,6 +1,6 @@
 ---
 import TimelineCard from "./TimelineCard.astro";
-import Icon from "./Icon.astro";
+import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config/site";
 import { parseRss, type FeedEntry } from "../lib/rss";
 
@@ -48,7 +48,7 @@ try {
         <h2 class="section-title">最近留下的<br />几条轨迹。</h2>
       </div>
       <a href={siteConfig.blogUrl} target="_blank" rel="noreferrer" class="inline-flex items-center gap-2 text-sm font-semibold underline decoration-sea decoration-2 underline-offset-8">
-        查看全部文章 <Icon name="arrow-up-right" class="h-4 w-4" />
+        查看全部文章 <Icon name="lucide:arrow-up-right" class="h-4 w-4" aria-hidden="true" />
       </a>
     </div>
 

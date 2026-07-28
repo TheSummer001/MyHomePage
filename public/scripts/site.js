@@ -118,6 +118,8 @@ const playerName = document.querySelector("#player-name");
 const playerArtist = document.querySelector("#player-artist");
 const playerCover = document.querySelector("#player-cover");
 const playerProgress = document.querySelector("#player-progress");
+const musicCardPlayIcon = document.querySelector("#music-card-play-icon")?.innerHTML.trim() || "";
+const musicExternalLinkIcon = document.querySelector("#music-external-link-icon")?.innerHTML.trim() || "";
 
 function escapeHtml(value = "") {
   return String(value)
@@ -151,7 +153,7 @@ function renderTracks(tracks, player) {
             <img src="${escapeHtml(track.cover)}" data-cover-source="${escapeHtml(track.cover)}" alt="" loading="lazy" draggable="false" class="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
             <span class="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20"></span>
             <span class="absolute bottom-4 left-4 grid h-11 w-11 place-items-center rounded-full bg-white text-ink opacity-0 transition-all group-hover:opacity-100">
-              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"></path></svg>
+              ${musicCardPlayIcon}
             </span>
           </span>
           <span class="mt-4 block truncate text-base font-semibold">${escapeHtml(track.name)}</span>
@@ -166,6 +168,7 @@ function renderTracks(tracks, player) {
       if (trackContainer.dataset.dragged === "true") return;
       player.list.switch(Number(card.dataset.trackIndex));
       player.play();
+      card.blur();
     });
   });
 
@@ -268,7 +271,7 @@ async function initMusic() {
         <p class="mt-2 text-sm leading-6 text-white/45">音乐服务可能正在维护，可以稍后重试，或直接前往网易云查看歌单。</p>
         <a href="https://music.163.com/playlist?id=${encodeURIComponent(playlistId)}" target="_blank" rel="noreferrer" class="mt-5 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold transition-colors hover:border-coral">
           打开网易云歌单
-          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M7 7h10v10"></path></svg>
+          ${musicExternalLinkIcon}
         </a>
       </div>
     `;
@@ -288,42 +291,54 @@ musicNext?.addEventListener("click", () => {
 
 let dragStartX = 0;
 let dragStartScrollLeft = 0;
+let isPointerDownTrack = false;
 let isDraggingTrack = false;
+let isTrackFocused = false;
 let autoScrollPausedUntil = 0;
 
 function pauseAutoScroll(duration = 3500) {
   autoScrollPausedUntil = Date.now() + duration;
 }
 
+function resumeAutoScroll() {
+  autoScrollPausedUntil = 0;
+}
+
 trackContainer?.addEventListener("pointerdown", (event) => {
   if (event.button !== 0) return;
-  isDraggingTrack = true;
+  isPointerDownTrack = true;
+  isDraggingTrack = false;
   dragStartX = event.clientX;
   dragStartScrollLeft = trackContainer.scrollLeft;
   trackContainer.dataset.dragged = "false";
-  trackContainer.classList.add("is-dragging", "cursor-grabbing");
-  trackContainer.classList.remove("cursor-grab");
-  trackContainer.setPointerCapture(event.pointerId);
-  pauseAutoScroll();
+  autoScrollPausedUntil = Number.POSITIVE_INFINITY;
 });
 
 trackContainer?.addEventListener("pointermove", (event) => {
-  if (!isDraggingTrack) return;
+  if (!isPointerDownTrack) return;
   const distance = event.clientX - dragStartX;
-  if (Math.abs(distance) > 4) trackContainer.dataset.dragged = "true";
+  if (!isDraggingTrack && Math.abs(distance) > 5) {
+    isDraggingTrack = true;
+    trackContainer.dataset.dragged = "true";
+    trackContainer.classList.add("is-dragging", "cursor-grabbing");
+    trackContainer.classList.remove("cursor-grab");
+    trackContainer.setPointerCapture(event.pointerId);
+  }
+  if (!isDraggingTrack) return;
   trackContainer.scrollLeft = dragStartScrollLeft - distance;
   event.preventDefault();
 });
 
 function finishTrackDrag(event) {
-  if (!trackContainer || !isDraggingTrack) return;
+  if (!trackContainer || !isPointerDownTrack) return;
+  isPointerDownTrack = false;
   isDraggingTrack = false;
   trackContainer.classList.remove("is-dragging", "cursor-grabbing");
   trackContainer.classList.add("cursor-grab");
   if (trackContainer.hasPointerCapture(event.pointerId)) {
     trackContainer.releasePointerCapture(event.pointerId);
   }
-  pauseAutoScroll();
+  resumeAutoScroll();
   setTimeout(() => {
     if (trackContainer) trackContainer.dataset.dragged = "false";
   }, 80);
@@ -331,9 +346,19 @@ function finishTrackDrag(event) {
 
 trackContainer?.addEventListener("pointerup", finishTrackDrag);
 trackContainer?.addEventListener("pointercancel", finishTrackDrag);
-trackContainer?.addEventListener("wheel", () => pauseAutoScroll(), { passive: true });
-trackContainer?.addEventListener("mouseenter", () => pauseAutoScroll(800));
-trackContainer?.addEventListener("focusin", () => pauseAutoScroll());
+trackContainer?.addEventListener("pointerleave", finishTrackDrag);
+trackContainer?.addEventListener("wheel", () => pauseAutoScroll(250), { passive: true });
+trackContainer?.addEventListener("focusin", () => {
+  isTrackFocused = true;
+});
+trackContainer?.addEventListener("focusout", () => {
+  requestAnimationFrame(() => {
+    if (!trackContainer.contains(document.activeElement)) {
+      isTrackFocused = false;
+      resumeAutoScroll();
+    }
+  });
+});
 
 if (trackContainer && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
   let previousAutoScrollTime = Date.now();
@@ -344,7 +369,9 @@ if (trackContainer && !window.matchMedia("(prefers-reduced-motion: reduce)").mat
     previousAutoScrollTime = now;
     if (
       Date.now() > autoScrollPausedUntil &&
+      !isPointerDownTrack &&
       !isDraggingTrack &&
+      !isTrackFocused &&
       document.visibilityState === "visible" &&
       trackContainer.scrollWidth > trackContainer.clientWidth
     ) {

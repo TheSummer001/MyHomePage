@@ -4,17 +4,18 @@ interface Props {
   url: string;
   desc: string;
   icon: string;
+  color: string;
 }
 
-import Icon from "./Icon.astro";
+import { Icon } from "astro-icon/components";
 
-const { name, url, desc, icon } = Astro.props;
+const { name, url, desc, icon, color } = Astro.props;
 ---
 
 <a href={url} target="_blank" rel="noreferrer" class="group flex min-h-40 flex-col justify-between border-l border-t border-ink/15 p-5 transition-colors hover:bg-white">
   <div class="flex items-start justify-between">
-    <Icon name={icon} class="h-7 w-7 text-signal" />
-    <Icon name="arrow-up-right" class="h-4 w-4 text-ink/35 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-signal" />
+    <Icon name={icon} class="h-7 w-7" style={`color: ${color}`} aria-hidden="true" />
+    <Icon name="lucide:arrow-up-right" class="h-4 w-4 text-ink/35 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-signal" aria-hidden="true" />
   </div>
   <div>
     <h4 class="text-base font-semibold">{name}</h4>

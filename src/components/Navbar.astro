@@ -1,5 +1,6 @@
 ---
 import { siteConfig } from "../config/site";
+import { Icon } from "astro-icon/components";
 
 const links = [
   { label: "首页", href: "#hero", id: "hero" },
@@ -40,10 +41,8 @@ const links = [
       aria-expanded="false"
       aria-controls="mobile-menu"
     >
-      <span class="relative h-3.5 w-5">
-        <span class="absolute left-0 top-0 h-px w-5 bg-current transition-transform"></span>
-        <span class="absolute bottom-0 left-0 h-px w-5 bg-current transition-transform"></span>
-      </span>
+      <Icon name="lucide:menu" class="menu-open-icon h-5 w-5" aria-hidden="true" />
+      <Icon name="lucide:x" class="menu-close-icon hidden h-5 w-5" aria-hidden="true" />
     </button>
   </div>
 
@@ -80,5 +79,13 @@ const links = [
   :global(body.menu-open) .site-header {
     color: white;
     border-color: rgb(255 255 255 / 10%);
+  }
+
+  #menu-toggle[aria-expanded="true"] .menu-open-icon {
+    display: none;
+  }
+
+  #menu-toggle[aria-expanded="true"] .menu-close-icon {
+    display: block;
   }
 </style>

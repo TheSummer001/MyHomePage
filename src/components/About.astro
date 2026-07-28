@@ -1,6 +1,6 @@
 ---
 import SocialLinks from "./SocialLinks.astro";
-import Icon from "./Icon.astro";
+import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config/site";
 ---
 
@@ -27,7 +27,7 @@ import { siteConfig } from "../config/site";
         <div class="mt-8 flex flex-wrap gap-2">
           {siteConfig.about.skills.map((skill) => (
             <span class="inline-flex items-center gap-1.5 rounded-full border border-ink/14 bg-white/50 px-3 py-1.5 text-xs font-semibold">
-              <Icon name={skill.icon} class="h-3.5 w-3.5 text-signal" />
+              <Icon name={skill.icon} class="h-3.5 w-3.5" style={`color: ${skill.color}`} aria-hidden="true" />
               {skill.label}
             </span>
           ))}
@@ -37,7 +37,7 @@ import { siteConfig } from "../config/site";
           <SocialLinks />
           <a href={siteConfig.blogUrl} target="_blank" rel="noreferrer" class="group mt-5 inline-flex items-center gap-4 rounded-xl bg-ink px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-signal">
             前往我的博客
-            <Icon name="arrow-up-right" class="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <Icon name="lucide:arrow-up-right" class="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
           </a>
         </div>
       </div>

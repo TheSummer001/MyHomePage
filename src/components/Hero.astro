@@ -1,5 +1,5 @@
 ---
-import Icon from "./Icon.astro";
+import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config/site";
 ---
 
@@ -59,7 +59,7 @@ import { siteConfig } from "../config/site";
       <a href="#about" class="group flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-white">
         向下探索
         <span class="grid h-12 w-12 place-items-center rounded-full border border-white/25 transition-transform group-hover:translate-y-1">
-          <Icon name="arrow-down" class="h-4 w-4" />
+          <Icon name="lucide:arrow-down" class="h-4 w-4" aria-hidden="true" />
         </span>
       </a>
     </div>

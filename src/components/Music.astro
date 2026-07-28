@@ -1,5 +1,5 @@
 ---
-import Icon from "./Icon.astro";
+import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config/site";
 ---
 
@@ -20,10 +20,10 @@ import { siteConfig } from "../config/site";
         <p class="text-sm leading-7 text-white/50">来自网易云歌单 {siteConfig.playlistId}。左右滑动选择一首，让音乐留在页面底部继续播放。</p>
         <div class="mt-5 flex items-center gap-2">
           <button id="music-prev" class="grid h-10 w-10 place-items-center rounded-full border border-white/15 text-white/70 transition-colors hover:border-coral hover:text-white" aria-label="查看上一组歌曲">
-            <Icon name="chevron-left" class="h-4 w-4" />
+            <Icon name="lucide:chevron-left" class="h-4 w-4" aria-hidden="true" />
           </button>
           <button id="music-next" class="grid h-10 w-10 place-items-center rounded-full border border-white/15 text-white/70 transition-colors hover:border-coral hover:text-white" aria-label="查看更多歌曲">
-            <Icon name="chevron-right" class="h-4 w-4" />
+            <Icon name="lucide:chevron-right" class="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -31,7 +31,7 @@ import { siteConfig } from "../config/site";
   </div>
 
   <div class="mt-14">
-    <div id="music-track" class="no-scrollbar grid cursor-grab grid-flow-col grid-rows-2 auto-cols-[min(42vw,170px)] gap-x-4 gap-y-7 overflow-x-auto px-[max(1rem,calc((100vw-1180px)/2))] pb-5 select-none">
+    <div id="music-track" class="no-scrollbar grid touch-pan-y cursor-grab grid-flow-col grid-rows-2 auto-cols-[min(42vw,170px)] gap-x-4 gap-y-7 overflow-x-auto px-[max(1rem,calc((100vw-1180px)/2))] pb-5 select-none">
       {[0, 1, 2, 3, 4, 5].map(() => (
         <div class="w-full" aria-hidden="true">
           <div class="aspect-square animate-pulse rounded-2xl bg-white/7"></div>
@@ -44,6 +44,12 @@ import { siteConfig } from "../config/site";
   </div>
 
   <div id="aplayer-engine" class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true"></div>
+  <template id="music-card-play-icon">
+    <Icon name="lucide:play" class="h-4 w-4" aria-hidden="true" />
+  </template>
+  <template id="music-external-link-icon">
+    <Icon name="lucide:external-link" class="h-4 w-4" aria-hidden="true" />
+  </template>
 </section>
 
 <div id="mini-player" class="pointer-events-none fixed inset-x-0 bottom-0 z-40 translate-y-full opacity-0 transition-all duration-500" aria-live="polite">
@@ -55,8 +61,8 @@ import { siteConfig } from "../config/site";
       <div class="mt-2 h-px bg-white/15"><div id="player-progress" class="h-full w-0 bg-coral"></div></div>
     </div>
     <button id="player-toggle" class="pointer-events-auto grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 text-sm hover:border-coral" aria-label="播放">
-      <Icon name="play" class="player-icon-play h-4 w-4" />
-      <Icon name="pause" class="player-icon-pause hidden h-4 w-4" />
+      <Icon name="lucide:play" class="player-icon-play h-4 w-4" aria-hidden="true" />
+      <Icon name="lucide:pause" class="player-icon-pause hidden h-4 w-4" aria-hidden="true" />
     </button>
   </div>
 </div>
