@@ -1,0 +1,22 @@
+{
+  "name": "tooonran-homepage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "aplayer": "^1.10.1",
+    "astro": "^7.1.4",
+    "tailwindcss": "^4.3.3"
+  }
+}

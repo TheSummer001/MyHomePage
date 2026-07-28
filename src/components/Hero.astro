@@ -1,0 +1,79 @@
+---
+import Icon from "./Icon.astro";
+import { siteConfig } from "../config/site";
+---
+
+<section id="hero" data-section data-nav-tone="dark" class="relative flex min-h-screen scroll-mt-0 items-center overflow-hidden bg-obsidian pb-16 pt-(--nav-height) text-white">
+  <div class="pointer-events-none absolute inset-0 opacity-40" aria-hidden="true">
+    <div class="absolute inset-y-0 left-[8%] w-px bg-white/10"></div>
+    <div class="absolute inset-y-0 right-[8%] w-px bg-white/10"></div>
+    <div class="absolute inset-x-0 top-[28%] h-px bg-white/8"></div>
+    <div class="absolute inset-x-0 bottom-[24%] h-px bg-white/8"></div>
+  </div>
+
+  <div class="section-shell relative">
+    <div class="mb-12 flex items-center justify-between pt-8 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">
+      <span>Personal signal / 2026</span>
+      <span class="hidden sm:block">{siteConfig.hero.coordinate}</span>
+    </div>
+
+    <div class="hero-word relative mx-[-5vw] h-[clamp(140px,25vw,310px)] drop-shadow-[0_0_26px_rgba(255,255,255,0.18)]">
+      <svg class="h-full w-full" viewBox="0 0 1400 330" preserveAspectRatio="xMidYMid meet" role="img" aria-label="TOOONRAN">
+        <defs>
+          <mask id="hero-mask">
+            <rect width="100%" height="100%" fill="black"></rect>
+            <text
+              x="50%"
+              y="53%"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              fill="white"
+              style="font-size: 275px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 3px;"
+            >TOOONRAN</text>
+          </mask>
+          <linearGradient id="signal-fallback" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#4f65ee"></stop>
+            <stop offset=".38" stop-color="#2bb7a3"></stop>
+            <stop offset=".68" stop-color="#ff695b"></stop>
+            <stop offset="1" stop-color="#f2f4f1"></stop>
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#signal-fallback)" mask="url(#hero-mask)"></rect>
+        <foreignObject width="100%" height="100%" mask="url(#hero-mask)">
+          <video class="h-full w-full object-cover" autoplay muted loop playsinline poster={siteConfig.hero.poster}>
+            <source src={siteConfig.hero.video} type="video/mp4" />
+          </video>
+        </foreignObject>
+      </svg>
+      <div class="hero-scan pointer-events-none absolute inset-x-[8%] top-0 h-px bg-white/80 shadow-[0_0_18px_4px_rgba(255,255,255,.35)]" aria-hidden="true"></div>
+    </div>
+
+    <div class="mt-8 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+      <div>
+        <p class="max-w-2xl text-xl leading-relaxed text-white/78 sm:text-2xl">
+          {siteConfig.hero.mottoLines[0]}{" "}<br class="hidden sm:block" />
+          {siteConfig.hero.mottoLines[1]}
+        </p>
+        <p class="mt-4 max-w-lg text-sm leading-7 text-white/42">在代码、音乐与日常之间，记录那些值得留下的微小信号。</p>
+      </div>
+      <a href="#about" class="group flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-white">
+        向下探索
+        <span class="grid h-12 w-12 place-items-center rounded-full border border-white/25 transition-transform group-hover:translate-y-1">
+          <Icon name="arrow-down" class="h-4 w-4" />
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-scan {
+    animation: scan 5.5s cubic-bezier(.45, 0, .55, 1) infinite alternate;
+  }
+
+  @keyframes scan {
+    from { transform: translateY(26px); opacity: .15; }
+    45% { opacity: .8; }
+    to { transform: translateY(clamp(100px, 20vw, 285px)); opacity: .15; }
+  }
+</style>

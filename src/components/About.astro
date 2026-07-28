@@ -1,0 +1,46 @@
+---
+import SocialLinks from "./SocialLinks.astro";
+import Icon from "./Icon.astro";
+import { siteConfig } from "../config/site";
+---
+
+<section id="about" data-section data-nav-tone="light" class="scroll-mt-0 bg-mist py-24 sm:py-32">
+  <div class="section-shell">
+    <div class="reveal grid gap-14 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
+      <div class="relative mx-auto w-[min(78vw,360px)] lg:w-auto">
+        <div class="aspect-square overflow-hidden rounded-full bg-ink">
+          <img src={siteConfig.about.avatar} alt="TooonRan 的头像" class="h-full w-full rounded-full object-cover" />
+        </div>
+      </div>
+
+      <div class="flex flex-col justify-center">
+        <p class="section-kicker text-signal">About / 关于我</p>
+        <h2 class="section-title text-[clamp(2.1rem,5vw,5.5rem)]">
+          <span class="block whitespace-nowrap">把兴趣写成代码，</span>
+          <span class="block whitespace-nowrap">把生活留作注脚。</span>
+        </h2>
+        <div class="mt-8 max-w-2xl space-y-4 text-base leading-8 text-ink/68">
+          <p>你好，我是 TooonRan。一名持续学习的开发者，也是一位喜欢把技术、音乐与生活片段认真归档的人。</p>
+          <p>这里不是一份履历的复刻，而是我的个人信号站：你可以认识我正在使用的技术、最近循环的音乐，以及那些让我停下来记录的想法。</p>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-2">
+          {siteConfig.about.skills.map((skill) => (
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-ink/14 bg-white/50 px-3 py-1.5 text-xs font-semibold">
+              <Icon name={skill.icon} class="h-3.5 w-3.5 text-signal" />
+              {skill.label}
+            </span>
+          ))}
+        </div>
+
+        <div class="mt-10 border-t border-ink/15 pt-7">
+          <SocialLinks />
+          <a href={siteConfig.blogUrl} target="_blank" rel="noreferrer" class="group mt-5 inline-flex items-center gap-4 rounded-xl bg-ink px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-signal">
+            前往我的博客
+            <Icon name="arrow-up-right" class="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

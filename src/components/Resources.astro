@@ -1,0 +1,33 @@
+---
+import ResourceCard from "./ResourceCard.astro";
+import { siteConfig } from "../config/site";
+---
+
+<section id="resources" data-section data-nav-tone="light" class="scroll-mt-0 bg-[#e9edf3] py-20 sm:py-28">
+  <div class="section-shell">
+    <div class="reveal grid gap-8 lg:grid-cols-[1fr_.7fr] lg:items-end">
+      <div>
+        <p class="section-kicker text-signal">Useful things / 资源</p>
+        <h2 class="section-title">常用的，<br />才值得留下。</h2>
+      </div>
+      <p class="max-w-lg text-sm leading-7 text-ink/58">我的日常工具箱。每个入口都解决一个明确问题，不追求数量，只保留真正反复使用的东西。</p>
+    </div>
+
+    <div class="mt-16 space-y-12">
+      {siteConfig.resources.map((group) => (
+        <div class="reveal grid gap-5 lg:grid-cols-[190px_1fr]">
+          <div class="border-t border-ink pt-4">
+            <span class="font-display text-sm tracking-[0.18em] text-signal">{group.subtitle}</span>
+            <h3 class="mt-2 text-lg font-semibold">{group.title}</h3>
+          </div>
+          <div class:list={[
+            "grid grid-cols-2 overflow-hidden rounded-2xl border-b border-r border-ink/15",
+            group.items.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3",
+          ]}>
+            {group.items.map((item) => <ResourceCard {...item} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
