@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Navbar from "../components/Navbar.astro";
+import { siteConfig } from "../config/site";
 
 interface Props {
   title?: string;
@@ -8,9 +9,60 @@ interface Props {
 }
 
 const {
-  title = "TooonRan — 个人主页",
-  description = "TooonRan 的个人主页：代码、音乐、资源与持续更新的生活轨迹。",
+  title = siteConfig.title,
+  description = siteConfig.description,
 } = Astro.props;
+
+const siteUrl = Astro.site ?? new URL(siteConfig.siteUrl);
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl);
+const socialImageUrl = new URL(siteConfig.socialImage, siteUrl);
+const avatarUrl = new URL(siteConfig.about.avatar, siteUrl);
+const sameAs = siteConfig.socials
+  .map((social) => social.href)
+  .filter((href) => href.startsWith("https://"));
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteConfig.siteUrl}/#website`,
+      url: `${siteConfig.siteUrl}/`,
+      name: siteConfig.brand,
+      alternateName: siteConfig.alternateBrand,
+      description,
+      inLanguage: "zh-CN",
+      publisher: { "@id": `${siteConfig.siteUrl}/#person` },
+    },
+    {
+      "@type": "Person",
+      "@id": `${siteConfig.siteUrl}/#person`,
+      name: siteConfig.brand,
+      alternateName: siteConfig.alternateBrand,
+      url: `${siteConfig.siteUrl}/`,
+      image: avatarUrl.href,
+      description,
+      sameAs,
+      knowsAbout: siteConfig.about.skills.map((skill) => skill.label),
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${canonicalUrl.href}#webpage`,
+      url: canonicalUrl.href,
+      name: title,
+      description,
+      inLanguage: "zh-CN",
+      isPartOf: { "@id": `${siteConfig.siteUrl}/#website` },
+      about: { "@id": `${siteConfig.siteUrl}/#person` },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: socialImageUrl.href,
+        width: 1200,
+        height: 630,
+      },
+    },
+  ],
+};
 ---
 
 <!doctype html>
@@ -19,8 +71,28 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    <meta name="author" content={`${siteConfig.brand} ${siteConfig.alternateBrand}`} />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="theme-color" content="#090b10" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="alternate" type="application/rss+xml" title="TooonRan Blog RSS" href={siteConfig.rssUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:site_name" content={siteConfig.brand} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={socialImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="TooonRan 途然品牌标识" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImageUrl} />
+    <meta name="twitter:image:alt" content="TooonRan 途然品牌标识" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -28,6 +100,7 @@ const {
       rel="stylesheet"
     />
     <title>{title}</title>
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />
   </head>
   <body>
     <Navbar />

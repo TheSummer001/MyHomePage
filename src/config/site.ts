@@ -1,5 +1,10 @@
 export const siteConfig = {
+    siteUrl: "https://www.tooonran.top",
     brand: "TooonRan",
+    alternateBrand: "途然",
+    title: "TooonRan 途然 — 个人主页",
+    description: "TooonRan 途然的个人主页，记录代码、音乐、常用资源与持续更新的生活轨迹。",
+    socialImage: "/images/tooonran-og.png",
     blogUrl: "https://blog.tooonran.top/",
     contactEmail: "tooonran@gmail.com",
     rssUrl: "https://blog.tooonran.top/rss2.xml",

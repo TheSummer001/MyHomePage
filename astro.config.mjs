@@ -1,9 +1,10 @@
 import { defineConfig } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 import icon from "astro-icon";
+import { siteConfig } from "./src/config/site";
 
 export default defineConfig({
-  site: "https://tooonran.top",
+  site: siteConfig.siteUrl,
   output: "static",
   integrations: [
     icon({
