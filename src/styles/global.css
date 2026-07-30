@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Bebas Neue";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/bebas-neue/BebasNeue-Regular.woff2") format("woff2");
+}
+
 @theme {
   --font-display: "Bebas Neue", sans-serif;
   --font-sans: "Inter", "Noto Sans SC", sans-serif;
