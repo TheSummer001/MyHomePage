@@ -214,6 +214,10 @@ const musicCardPlayIcon =
   document.querySelector<HTMLElement>("#music-card-play-icon")?.innerHTML.trim() || "";
 const musicExternalLinkIcon =
   document.querySelector<HTMLElement>("#music-external-link-icon")?.innerHTML.trim() || "";
+const musicErrorIcon =
+  document.querySelector<HTMLElement>("#music-error-icon")?.innerHTML.trim() || "";
+const musicRetryIcon =
+  document.querySelector<HTMLElement>("#music-retry-icon")?.innerHTML.trim() || "";
 
 interface Track {
   id: string;
@@ -222,6 +226,11 @@ interface Track {
   url: string;
   cover: string;
   lrc: string;
+}
+
+function setMusicNavigationDisabled(disabled: boolean) {
+  if (musicPrev) musicPrev.disabled = disabled;
+  if (musicNext) musicNext.disabled = disabled;
 }
 
 function escapeHtml(value: unknown = "") {
@@ -286,6 +295,10 @@ function normalizeTracks(data: unknown): Track[] {
 
 function renderTracks(tracks: Track[], playTrack: (index: number) => void) {
   if (!trackContainer) return;
+  trackContainer.dataset.state = "ready";
+  trackContainer.removeAttribute("aria-busy");
+  setMusicNavigationDisabled(false);
+  if (musicStatus) musicStatus.hidden = false;
   trackContainer.innerHTML = tracks
     .map(
       (track, index) => `
@@ -344,10 +357,13 @@ function renderTracks(tracks: Track[], playTrack: (index: number) => void) {
   if (musicStatus) musicStatus.textContent = `已载入 ${tracks.length} 首歌曲，点击封面开始播放。`;
 }
 
-async function fetchPlaylist(): Promise<Track[]> {
+async function fetchPlaylist(bypassCache = false): Promise<Track[]> {
   for (const source of playlistSources) {
     try {
-      const response = await fetch(source, { mode: "cors" });
+      const response = await fetch(source, {
+        mode: "cors",
+        ...(bypassCache ? { cache: "no-store" as const } : {}),
+      });
       if (!response.ok) continue;
       const tracks = normalizeTracks(await response.json());
       if (tracks.length) return tracks;
@@ -358,11 +374,75 @@ async function fetchPlaylist(): Promise<Track[]> {
   throw new Error("All playlist sources are unavailable");
 }
 
-async function initMusic() {
+function renderPlaylistError(isRetry: boolean) {
+  if (!trackContainer) return;
+
+  setMusicNavigationDisabled(true);
+  trackContainer.dataset.state = "error";
+  trackContainer.removeAttribute("aria-busy");
+  trackContainer.innerHTML = `
+    <div class="w-full rounded-3xl border border-white/12 bg-white/[0.04] p-6 sm:p-8">
+      <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex min-w-0 items-start gap-4">
+          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-coral/35 bg-coral/10 text-coral">
+            ${musicErrorIcon}
+          </span>
+          <div class="max-w-xl" role="status">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-coral">Signal interrupted / 信号中断</p>
+            <p class="mt-2 text-lg font-semibold text-white">歌单暂时无法加载</p>
+            <p data-music-error-description class="mt-2 text-sm leading-6 text-white/45">
+              ${
+                isRetry
+                  ? "仍未连接音乐服务，请稍后再试，或直接前往网易云查看歌单。"
+                  : "音乐服务可能正在维护，可以稍后重试，或直接前往网易云查看歌单。"
+              }
+            </p>
+          </div>
+        </div>
+        <div class="flex shrink-0 flex-wrap gap-3 sm:justify-end">
+          <button type="button" data-music-retry class="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink transition-colors hover:bg-coral hover:text-white disabled:cursor-wait disabled:bg-white/65 disabled:text-ink/60">
+            <span data-music-retry-icon class="inline-flex">${musicRetryIcon}</span>
+            <span data-music-retry-label>重新加载</span>
+          </button>
+          <a href="https://music.163.com/playlist?id=${encodeURIComponent(playlistId)}" target="_blank" rel="noreferrer" class="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white transition-colors hover:border-coral">
+            打开网易云歌单
+            ${musicExternalLinkIcon}
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (musicStatus) {
+    musicStatus.textContent = "";
+    musicStatus.hidden = true;
+  }
+
+  const retryButton = trackContainer.querySelector<HTMLButtonElement>("[data-music-retry]");
+  retryButton?.addEventListener("click", () => {
+    retryButton.disabled = true;
+    retryButton.setAttribute("aria-busy", "true");
+    retryButton.querySelector<HTMLElement>("[data-music-retry-icon]")?.classList.add("motion-safe:animate-spin");
+    const retryLabel = retryButton.querySelector<HTMLElement>("[data-music-retry-label]");
+    const description = trackContainer.querySelector<HTMLElement>("[data-music-error-description]");
+    if (retryLabel) retryLabel.textContent = "正在重试…";
+    if (description) description.textContent = "正在重新连接音乐服务，请稍候。";
+    if (musicStatus) {
+      musicStatus.hidden = false;
+      musicStatus.textContent = "正在重新连接歌单…";
+    }
+    trackContainer.setAttribute("aria-busy", "true");
+    void initMusic(true);
+  });
+}
+
+async function initMusic(isRetry = false) {
   if (!trackContainer || !engineContainer) return;
 
+  setMusicNavigationDisabled(true);
+
   try {
-    const tracks = await fetchPlaylist();
+    const tracks = await fetchPlaylist(isRetry);
     const resolvedUrls = new Map<string, Promise<string>>();
     const resolvedSourceLabels = new Map<string, string>();
 
@@ -517,17 +597,7 @@ async function initMusic() {
     });
   } catch (error) {
     console.warn("Playlist unavailable.", error);
-    trackContainer.innerHTML = `
-      <div class="w-[min(100%-2rem,560px)] rounded-2xl border border-white/12 bg-white/4 p-7">
-        <p class="text-base font-semibold">歌单暂时无法加载</p>
-        <p class="mt-2 text-sm leading-6 text-white/45">音乐服务可能正在维护，可以稍后重试，或直接前往网易云查看歌单。</p>
-        <a href="https://music.163.com/playlist?id=${encodeURIComponent(playlistId)}" target="_blank" rel="noreferrer" class="mt-5 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold transition-colors hover:border-coral">
-          打开网易云歌单
-          ${musicExternalLinkIcon}
-        </a>
-      </div>
-    `;
-    if (musicStatus) musicStatus.textContent = "未能连接音乐服务。";
+    renderPlaylistError(isRetry);
   }
 }
 

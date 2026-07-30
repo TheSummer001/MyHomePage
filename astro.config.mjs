@@ -34,6 +34,8 @@ export default defineConfig({
           "pause",
           "pen-line",
           "play",
+          "radio-tower",
+          "refresh-cw",
           "shapes",
           "terminal",
           "user",
