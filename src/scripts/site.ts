@@ -1,6 +1,9 @@
-const menuToggle = document.querySelector("#menu-toggle");
-const mobileMenu = document.querySelector("#mobile-menu");
-const siteHeader = document.querySelector("#site-header");
+import APlayer from "aplayer";
+import "aplayer/dist/APlayer.min.css";
+
+const menuToggle = document.querySelector<HTMLButtonElement>("#menu-toggle");
+const mobileMenu = document.querySelector<HTMLElement>("#mobile-menu");
+const siteHeader = document.querySelector<HTMLElement>("#site-header");
 
 function closeMenu() {
   if (!menuToggle || !mobileMenu) return;
@@ -24,7 +27,7 @@ menuToggle?.addEventListener("click", () => {
   document.body.classList.add("menu-open");
 });
 
-document.querySelectorAll("[data-scroll-target]").forEach((link) => {
+document.querySelectorAll<HTMLElement>("[data-scroll-target]").forEach((link) => {
   link.addEventListener("click", (event) => {
     event.preventDefault();
 
@@ -45,13 +48,13 @@ document.querySelectorAll("[data-scroll-target]").forEach((link) => {
   });
 });
 
-const navLinks = [...document.querySelectorAll("[data-nav]")];
-const sections = [...document.querySelectorAll("[data-section][id]")].filter((section) =>
+const navLinks = [...document.querySelectorAll<HTMLElement>("[data-nav]")];
+const sections = [...document.querySelectorAll<HTMLElement>("[data-section][id]")].filter((section) =>
   navLinks.some((link) => link.dataset.nav === section.id),
 );
-const visibleSections = new Map();
+const visibleSections = new Map<string, IntersectionObserverEntry>();
 
-function updateActiveNav(sectionId) {
+function updateActiveNav(sectionId: string) {
   navLinks.forEach((link) => {
     link.dataset.active = String(link.dataset.nav === sectionId);
   });
@@ -80,7 +83,7 @@ const sectionObserver = new IntersectionObserver(
 
 sections.forEach((section) => sectionObserver.observe(section));
 
-let headerToneFrame;
+let headerToneFrame = 0;
 function updateHeaderTone() {
   if (!siteHeader) return;
   const probeY = Math.max(1, Math.round(siteHeader.getBoundingClientRect().height / 2));
@@ -89,7 +92,7 @@ function updateHeaderTone() {
     .map((element) => element.closest("[data-nav-tone]"))
     .find(Boolean);
 
-  if (underlyingSection) {
+  if (underlyingSection instanceof HTMLElement) {
     siteHeader.dataset.tone = underlyingSection.dataset.navTone || "light";
   }
 }
@@ -116,30 +119,40 @@ const revealObserver = new IntersectionObserver(
 
 document.querySelectorAll(".reveal").forEach((element) => revealObserver.observe(element));
 
-const musicSection = document.querySelector("#music");
+const musicSection = document.querySelector<HTMLElement>("#music");
 const playlistId = musicSection?.dataset.playlistId || "";
 const playlistSources = [
   "/music.json",
   `https://api.injahow.cn/meting/?server=netease&type=playlist&id=${encodeURIComponent(playlistId)}`,
 ];
-const trackContainer = document.querySelector("#music-track");
-const engineContainer = document.querySelector("#aplayer-engine");
-const musicStatus = document.querySelector("#music-status");
-const musicPrev = document.querySelector("#music-prev");
-const musicNext = document.querySelector("#music-next");
-const miniPlayer = document.querySelector("#mini-player");
-const playerToggle = document.querySelector("#player-toggle");
-const playerPlayIcon = playerToggle?.querySelector(".player-icon-play");
-const playerPauseIcon = playerToggle?.querySelector(".player-icon-pause");
-const playerName = document.querySelector("#player-name");
-const playerArtist = document.querySelector("#player-artist");
-const playerCover = document.querySelector("#player-cover");
-const playerProgress = document.querySelector("#player-progress");
-const musicCardPlayIcon = document.querySelector("#music-card-play-icon")?.innerHTML.trim() || "";
-const musicExternalLinkIcon = document.querySelector("#music-external-link-icon")?.innerHTML.trim() || "";
+const trackContainer = document.querySelector<HTMLElement>("#music-track");
+const engineContainer = document.querySelector<HTMLElement>("#aplayer-engine");
+const musicStatus = document.querySelector<HTMLElement>("#music-status");
+const musicPrev = document.querySelector<HTMLButtonElement>("#music-prev");
+const musicNext = document.querySelector<HTMLButtonElement>("#music-next");
+const miniPlayer = document.querySelector<HTMLElement>("#mini-player");
+const playerToggle = document.querySelector<HTMLButtonElement>("#player-toggle");
+const playerPlayIcon = playerToggle?.querySelector<HTMLElement>(".player-icon-play");
+const playerPauseIcon = playerToggle?.querySelector<HTMLElement>(".player-icon-pause");
+const playerName = document.querySelector<HTMLElement>("#player-name");
+const playerArtist = document.querySelector<HTMLElement>("#player-artist");
+const playerCover = document.querySelector<HTMLImageElement>("#player-cover");
+const playerProgress = document.querySelector<HTMLElement>("#player-progress");
+const musicCardPlayIcon =
+  document.querySelector<HTMLElement>("#music-card-play-icon")?.innerHTML.trim() || "";
+const musicExternalLinkIcon =
+  document.querySelector<HTMLElement>("#music-external-link-icon")?.innerHTML.trim() || "";
 
-function escapeHtml(value = "") {
-  return String(value)
+interface Track {
+  name: string;
+  artist: string;
+  url: string;
+  cover: string;
+  lrc: string;
+}
+
+function escapeHtml(value: unknown = "") {
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -147,20 +160,46 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#039;");
 }
 
-function normalizeTracks(data) {
-  const list = Array.isArray(data) ? data : data?.data || [];
-  return list
-    .map((track) => ({
-      name: track.name || track.title,
-      artist: track.artist || track.author || "未知音乐人",
-      url: track.url,
-      cover: track.pic || track.cover,
-      lrc: track.lrc || "",
-    }))
-    .filter((track) => track.name && track.url);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
-function renderTracks(tracks, player) {
+function firstString(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return undefined;
+}
+
+function normalizeTracks(data: unknown): Track[] {
+  const dataRecord = isRecord(data) ? data : null;
+  const list = Array.isArray(data)
+    ? data
+    : dataRecord && Array.isArray(dataRecord.data)
+      ? dataRecord.data
+      : [];
+
+  return list.flatMap((item) => {
+    if (!isRecord(item)) return [];
+
+    const name = firstString(item, ["name", "title"]);
+    const url = firstString(item, ["url"]);
+    if (!name || !url) return [];
+
+    return [
+      {
+        name,
+        artist: firstString(item, ["artist", "author"]) ?? "未知音乐人",
+        url,
+        cover: firstString(item, ["pic", "cover"]) ?? "",
+        lrc: firstString(item, ["lrc"]) ?? "",
+      },
+    ];
+  });
+}
+
+function renderTracks(tracks: Track[], player: APlayer) {
   if (!trackContainer) return;
   trackContainer.innerHTML = tracks
     .map(
@@ -180,7 +219,7 @@ function renderTracks(tracks, player) {
     )
     .join("");
 
-  trackContainer.querySelectorAll("[data-track-index]").forEach((card) => {
+  trackContainer.querySelectorAll<HTMLButtonElement>("[data-track-index]").forEach((card) => {
     card.addEventListener("click", () => {
       if (trackContainer.dataset.dragged === "true") return;
       player.list.switch(Number(card.dataset.trackIndex));
@@ -195,6 +234,7 @@ function renderTracks(tracks, player) {
         if (!entry.isIntersecting) return;
         observer.unobserve(entry.target);
 
+        if (!(entry.target instanceof HTMLImageElement)) return;
         const image = entry.target;
         const source = image.dataset.coverSource;
         if (!source) return;
@@ -212,12 +252,14 @@ function renderTracks(tracks, player) {
     { root: trackContainer, rootMargin: "0px 420px" },
   );
 
-  trackContainer.querySelectorAll("[data-cover-source]").forEach((image) => coverObserver.observe(image));
+  trackContainer
+    .querySelectorAll<HTMLImageElement>("[data-cover-source]")
+    .forEach((image) => coverObserver.observe(image));
 
   if (musicStatus) musicStatus.textContent = `已载入 ${tracks.length} 首歌曲，点击封面开始播放。`;
 }
 
-async function fetchPlaylist() {
+async function fetchPlaylist(): Promise<Track[]> {
   for (const source of playlistSources) {
     try {
       const response = await fetch(source, { mode: "cors" });
@@ -232,12 +274,12 @@ async function fetchPlaylist() {
 }
 
 async function initMusic() {
-  if (!trackContainer || !engineContainer || !window.APlayer) return;
+  if (!trackContainer || !engineContainer) return;
 
   try {
     const tracks = await fetchPlaylist();
 
-    const player = new window.APlayer({
+    const player = new APlayer({
       container: engineContainer,
       audio: tracks,
       preload: "metadata",
@@ -251,11 +293,11 @@ async function initMusic() {
       const index = player.list.index;
       const track = tracks[index];
       if (!track) return;
-      playerName.textContent = track.name;
-      playerArtist.textContent = track.artist;
-      playerCover.src = track.cover;
-      miniPlayer.classList.remove("translate-y-full", "opacity-0", "pointer-events-none");
-      miniPlayer.classList.add("translate-y-0", "opacity-100", "pointer-events-auto");
+      if (playerName) playerName.textContent = track.name;
+      if (playerArtist) playerArtist.textContent = track.artist;
+      if (playerCover) playerCover.src = track.cover;
+      miniPlayer?.classList.remove("translate-y-full", "opacity-0", "pointer-events-none");
+      miniPlayer?.classList.add("translate-y-0", "opacity-100", "pointer-events-auto");
     }
 
     player.on("play", () => {
@@ -273,7 +315,7 @@ async function initMusic() {
     player.on("timeupdate", () => {
       const audio = player.audio;
       const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-      playerProgress.style.width = `${progress}%`;
+      if (playerProgress) playerProgress.style.width = `${progress}%`;
     });
 
     playerToggle?.addEventListener("click", () => {
@@ -346,7 +388,7 @@ trackContainer?.addEventListener("pointermove", (event) => {
   event.preventDefault();
 });
 
-function finishTrackDrag(event) {
+function finishTrackDrag(event: PointerEvent) {
   if (!trackContainer || !isPointerDownTrack) return;
   isPointerDownTrack = false;
   isDraggingTrack = false;
