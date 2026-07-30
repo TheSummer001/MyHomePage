@@ -27,6 +27,7 @@ declare module "aplayer" {
     audio: HTMLAudioElement;
     list: {
       index: number;
+      audios: APlayerAudio[];
       switch(index: number): void;
     };
 

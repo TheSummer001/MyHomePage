@@ -121,6 +121,10 @@ document.querySelectorAll(".reveal").forEach((element) => revealObserver.observe
 
 const musicSection = document.querySelector<HTMLElement>("#music");
 const playlistId = musicSection?.dataset.playlistId || "";
+const musicSourceName = musicSection?.dataset.musicSourceName || "juhe";
+const musicSourceEndpoint = musicSection?.dataset.musicSourceEndpoint || "/api/music-url";
+const musicSourcePlatform = musicSection?.dataset.musicSourcePlatform || "wy";
+const musicSourceQuality = musicSection?.dataset.musicSourceQuality || "320k";
 const playlistSources = [
   "/music.json",
   `https://api.injahow.cn/meting/?server=netease&type=playlist&id=${encodeURIComponent(playlistId)}`,
@@ -144,6 +148,7 @@ const musicExternalLinkIcon =
   document.querySelector<HTMLElement>("#music-external-link-icon")?.innerHTML.trim() || "";
 
 interface Track {
+  id: string;
   name: string;
   artist: string;
   url: string;
@@ -172,6 +177,17 @@ function firstString(record: Record<string, unknown>, keys: string[]): string | 
   return undefined;
 }
 
+function getTrackId(item: Record<string, unknown>, url: string): string {
+  const explicitId = item.id;
+  if (typeof explicitId === "string" || typeof explicitId === "number") return String(explicitId);
+
+  try {
+    return new URL(url, window.location.href).searchParams.get("id") ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function normalizeTracks(data: unknown): Track[] {
   const dataRecord = isRecord(data) ? data : null;
   const list = Array.isArray(data)
@@ -189,6 +205,7 @@ function normalizeTracks(data: unknown): Track[] {
 
     return [
       {
+        id: getTrackId(item, url),
         name,
         artist: firstString(item, ["artist", "author"]) ?? "未知音乐人",
         url,
@@ -199,7 +216,7 @@ function normalizeTracks(data: unknown): Track[] {
   });
 }
 
-function renderTracks(tracks: Track[], player: APlayer) {
+function renderTracks(tracks: Track[], playTrack: (index: number) => void) {
   if (!trackContainer) return;
   trackContainer.innerHTML = tracks
     .map(
@@ -220,10 +237,10 @@ function renderTracks(tracks: Track[], player: APlayer) {
     .join("");
 
   trackContainer.querySelectorAll<HTMLButtonElement>("[data-track-index]").forEach((card) => {
+    const index = Number(card.dataset.trackIndex);
     card.addEventListener("click", () => {
       if (trackContainer.dataset.dragged === "true") return;
-      player.list.switch(Number(card.dataset.trackIndex));
-      player.play();
+      playTrack(index);
       card.blur();
     });
   });
@@ -278,6 +295,8 @@ async function initMusic() {
 
   try {
     const tracks = await fetchPlaylist();
+    const resolvedUrls = new Map<string, Promise<string>>();
+    const resolvedSourceLabels = new Map<string, string>();
 
     const player = new APlayer({
       container: engineContainer,
@@ -286,8 +305,114 @@ async function initMusic() {
       mutex: true,
       volume: 0.7,
     });
+    player.list.audios.forEach((audio) => {
+      audio.url = "";
+    });
+    player.audio.addEventListener(
+      "error",
+      (event) => {
+        event.stopImmediatePropagation();
+        const failedTrack = tracks[player.list.index];
+        if (failedTrack?.id) {
+          resolvedUrls.delete(failedTrack.id);
+          resolvedSourceLabels.delete(failedTrack.id);
+        }
+        const failedPlayerTrack = player.list.audios[player.list.index];
+        if (failedPlayerTrack) failedPlayerTrack.url = "";
+        player.pause();
+        if (musicStatus) {
+          musicStatus.textContent = "当前完整音源无法播放，已停止自动切换。";
+        }
+      },
+      { capture: true },
+    );
 
-    renderTracks(tracks, player);
+    function resolveTrackUrl(track: Track): Promise<string> {
+      if (!track.id) return Promise.reject(new Error("歌曲缺少可解析的网易云 ID"));
+      const cached = resolvedUrls.get(track.id);
+      if (cached) return cached;
+
+      const request = fetch(musicSourceEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: musicSourcePlatform,
+          quality: musicSourceQuality,
+          trackId: track.id,
+        }),
+      })
+        .then(async (response) => {
+          const data: unknown = await response.json();
+          if (!response.ok || !isRecord(data) || typeof data.url !== "string") {
+            const message = isRecord(data) && typeof data.error === "string" ? data.error : "音源未返回播放地址";
+            throw new Error(message);
+          }
+          const parsedUrl = new URL(data.url);
+          if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+            throw new Error("音源返回了无效播放地址");
+          }
+          const provider =
+            typeof data.provider === "string"
+              ? data.provider === "netease"
+                ? "网易云直连"
+                : data.provider
+              : musicSourceName;
+          const quality = typeof data.quality === "string" ? data.quality : musicSourceQuality;
+          resolvedSourceLabels.set(track.id, `${provider} / ${quality}`);
+          return parsedUrl.href;
+        })
+        .catch((error) => {
+          resolvedUrls.delete(track.id);
+          resolvedSourceLabels.delete(track.id);
+          throw error;
+        });
+      resolvedUrls.set(track.id, request);
+      return request;
+    }
+
+    async function cacheTrackUrl(index: number): Promise<string> {
+      const track = tracks[index];
+      if (!track) throw new Error(`Track ${index} does not exist`);
+      const url = await resolveTrackUrl(track);
+      const playerTrack = player.list.audios[index];
+      if (playerTrack) playerTrack.url = url;
+      return url;
+    }
+
+    let playRequest = 0;
+    async function playTrack(index: number) {
+      const track = tracks[index];
+      if (!track) return;
+
+      const request = ++playRequest;
+      if (!player.audio.paused) player.pause();
+      if (musicStatus) musicStatus.textContent = `正在解析「${track.name}」的播放地址…`;
+
+      try {
+        const url = await cacheTrackUrl(index);
+        if (request !== playRequest) return;
+
+        if (player.list.index !== index) player.list.switch(index);
+        if (player.audio.src !== url) player.audio.src = url;
+        player.play();
+        if (tracks.length > 1) void cacheTrackUrl((index + 1) % tracks.length).catch(() => {});
+        if (musicStatus) {
+          const sourceLabel =
+            resolvedSourceLabels.get(track.id) ??
+            `${musicSourceName} / ${musicSourcePlatform.toUpperCase()} ${musicSourceQuality}`;
+          musicStatus.textContent = `正在通过 ${sourceLabel} 音源播放。`;
+        }
+      } catch (error) {
+        if (request !== playRequest) return;
+        player.pause();
+        console.warn(`Music source unavailable for track ${track.id}.`, error);
+        if (musicStatus) {
+          musicStatus.textContent = "完整音源暂时不可用，已停止播放以避免使用短试听。";
+        }
+      }
+    }
+
+    renderTracks(tracks, (index) => void playTrack(index));
 
     function updateMeta() {
       const index = player.list.index;
@@ -319,7 +444,7 @@ async function initMusic() {
     });
 
     playerToggle?.addEventListener("click", () => {
-      if (player.audio.paused) player.play();
+      if (player.audio.paused) void playTrack(player.list.index);
       else player.pause();
     });
   } catch (error) {

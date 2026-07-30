@@ -9,6 +9,13 @@ export const siteConfig = {
     contactEmail: "tooonran@gmail.com",
     rssUrl: "https://blog.tooonran.top/rss2.xml",
     playlistId: "514347228",
+    musicSource: {
+        name: "juhe",
+        scriptUrl: "https://raw.githubusercontent.com/pdone/lx-music-source/main/juhe/latest.js",
+        endpoint: "/api/music-url",
+        platform: "wy",
+        quality: "320k",
+    },
     hero: {
         coordinate: "36.6512° N · 117.1201° E",
         video: "/videos/hero.mp4",
