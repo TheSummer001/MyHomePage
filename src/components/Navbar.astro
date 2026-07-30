@@ -4,25 +4,26 @@ import { Icon } from "astro-icon/components";
 
 interface NavItem {
   name: string;
+  icon: string;
   target?: string;
   href?: string;
   external?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { name: "首页", target: "hero" },
-  { name: "关于我", target: "about" },
-  { name: "音乐", target: "music" },
-  { name: "博客", href: siteConfig.blogUrl, external: true },
-  { name: "资源", target: "resources" },
-  { name: "动态", target: "dynamic" },
+  { name: "首页", icon: "lucide:home", target: "hero" },
+  { name: "关于我", icon: "lucide:user", target: "about" },
+  { name: "音乐", icon: "lucide:music", target: "music" },
+  { name: "博客", icon: "lucide:file-text", href: siteConfig.blogUrl, external: true },
+  { name: "资源", icon: "lucide:folder-open", target: "resources" },
+  { name: "动态", icon: "lucide:activity", target: "dynamic" },
 ];
 ---
 
 <header id="site-header" data-tone="dark" class="site-header fixed inset-x-0 top-0 z-50 border-b border-transparent text-white">
-  <div class="mx-auto flex h-(--nav-height) w-[min(100%-2rem,1180px)] items-center justify-between">
-    <a href="/" data-scroll-target="hero" class="group flex items-center gap-3" aria-label="TooonRan 首页">
-      <span class="grid h-9 w-9 place-items-center border border-current/25 font-display text-xl tracking-wider transition-colors group-hover:border-coral group-hover:text-coral">T</span>
+  <div class="relative z-20 mx-auto flex h-(--nav-height) w-[min(100%-2rem,1180px)] items-center justify-between">
+    <a href="/" data-scroll-target="hero" class="header-brand header-glass group flex h-11 items-center gap-2.5 rounded-xl py-1 pl-1 pr-3" aria-label="TooonRan 首页">
+      <span class="grid h-9 w-9 place-items-center rounded-lg border border-current/25 font-display text-xl tracking-wider transition-colors group-hover:border-coral group-hover:text-coral">T</span>
       <span class="text-sm font-semibold tracking-[0.12em]">{siteConfig.brand}</span>
     </a>
 
@@ -44,7 +45,8 @@ const navItems: NavItem[] = [
 
     <button
       id="menu-toggle"
-      class="grid h-10 w-10 place-items-center border border-current/20 md:hidden"
+      type="button"
+      class="header-glass grid h-11 w-11 place-items-center rounded-xl md:hidden"
       aria-label="打开导航菜单"
       aria-expanded="false"
       aria-controls="mobile-menu"
@@ -54,23 +56,57 @@ const navItems: NavItem[] = [
     </button>
   </div>
 
-  <nav id="mobile-menu" class="invisible fixed inset-x-0 top-(--nav-height) h-[calc(100dvh-var(--nav-height))] translate-y-3 bg-obsidian px-5 py-8 opacity-0 transition-all md:hidden" aria-label="移动端导航">
-    <div class="flex flex-col">
-      {navItems.map((item, index) => (
-        <a
-          href={item.href ?? "/"}
-          data-scroll-target={item.target}
-          data-nav={item.target}
-          target={item.external ? "_blank" : undefined}
-          rel={item.external ? "noreferrer" : undefined}
-          class="flex items-center justify-between border-b border-white/10 py-5 text-2xl font-medium text-white/75"
-        >
-          {item.name}
-          <span class="font-display text-sm tracking-widest text-white/30">{String(index + 1).padStart(2, "0")}</span>
-        </a>
-      ))}
-    </div>
-  </nav>
+  <div
+    id="mobile-menu"
+    class="mobile-menu pointer-events-none invisible fixed inset-0 z-10 md:hidden"
+    aria-hidden="true"
+  >
+    <button
+      type="button"
+      class="mobile-menu-backdrop absolute inset-0"
+      data-menu-dismiss
+      tabindex="-1"
+      aria-label="关闭导航菜单"
+    ></button>
+
+    <nav class="mobile-drawer absolute inset-y-0 right-0 w-[min(86vw,380px)] overflow-y-auto px-5 pb-6 pt-[calc(var(--nav-height)+1.25rem)]" aria-label="移动端导航">
+      <div class="flex flex-col items-center pb-5 pt-1">
+        <img
+          src={siteConfig.about.avatar}
+          alt=""
+          class="h-20 w-20 rounded-full border border-white/15 object-cover shadow-[0_14px_40px_rgb(0_0_0/35%)]"
+        />
+        <span class="mt-3 text-sm font-semibold tracking-[0.12em] text-white">{siteConfig.brand}</span>
+      </div>
+
+      <div class="mobile-nav-card overflow-hidden rounded-[1.35rem]">
+        {navItems.map((item) => (
+          <a
+            href={item.href ?? "/"}
+            data-scroll-target={item.target}
+            data-nav={item.target}
+            data-mobile-nav
+            target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noreferrer" : undefined}
+            class="mobile-nav-link group relative flex min-h-15 items-center gap-3.5 px-4 text-[0.95rem] font-medium text-white/68"
+          >
+            <span class="mobile-nav-icon grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white/48 transition-colors">
+              <Icon name={item.icon} class="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
+            </span>
+            <span>{item.name}</span>
+            {item.external && (
+              <Icon name="lucide:arrow-up-right" class="ml-auto h-4 w-4 text-white/28 transition-colors group-hover:text-white/65" aria-hidden="true" />
+            )}
+            {!item.external && (
+              <span class="mobile-nav-signal ml-auto flex items-center" aria-hidden="true">
+                <span></span>
+              </span>
+            )}
+          </a>
+        ))}
+      </div>
+    </nav>
+  </div>
 </header>
 
 <style>
@@ -80,14 +116,68 @@ const navItems: NavItem[] = [
     transition: color 240ms ease, border-color 240ms ease;
   }
 
+  .header-glass {
+    border: 1px solid rgb(255 255 255 / 14%);
+    background: rgb(9 11 16 / 52%);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    backdrop-filter: blur(14px) saturate(135%);
+    transition:
+      color 240ms ease,
+      border-color 240ms ease,
+      background-color 240ms ease,
+      box-shadow 240ms ease;
+  }
+
   .site-header[data-tone="light"] {
     color: #171b24;
     border-color: rgb(23 27 36 / 8%);
   }
 
+  .site-header[data-tone="light"] .header-glass {
+    border-color: rgb(23 27 36 / 11%);
+    background: rgb(242 244 241 / 76%);
+    box-shadow: 0 10px 30px rgb(23 27 36 / 8%);
+  }
+
   :global(body.menu-open) .site-header {
     color: white;
     border-color: rgb(255 255 255 / 10%);
+  }
+
+  :global(body.menu-open) .header-glass {
+    border-color: rgb(255 255 255 / 15%);
+    background: rgb(9 11 16 / 72%);
+    box-shadow: 0 10px 32px rgb(0 0 0 / 22%);
+  }
+
+  .header-brand {
+    opacity: 1;
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+      color 240ms ease,
+      border-color 240ms ease,
+      background-color 240ms ease,
+      box-shadow 240ms ease,
+      opacity 160ms ease,
+      transform 220ms cubic-bezier(.2, .72, .2, 1);
+  }
+
+  :global(body.menu-open) .header-brand {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-0.6rem);
+    visibility: hidden;
+  }
+
+  :global(body.menu-open) #menu-toggle.header-glass {
+    color: white;
+    border-color: rgb(255 255 255 / 13%);
+    background: rgb(255 255 255 / 7%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 6%),
+      0 12px 30px rgb(0 0 0 / 18%);
   }
 
   #menu-toggle[aria-expanded="true"] .menu-open-icon {
@@ -96,5 +186,116 @@ const navItems: NavItem[] = [
 
   #menu-toggle[aria-expanded="true"] .menu-close-icon {
     display: block;
+  }
+
+  .mobile-menu {
+    transition: visibility 0s linear 300ms;
+  }
+
+  .mobile-menu-backdrop {
+    border: 0;
+    background: rgb(3 5 9 / 58%);
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+
+  .mobile-drawer {
+    border-left: 1px solid rgb(255 255 255 / 10%);
+    background:
+      linear-gradient(155deg, rgb(25 30 41 / 86%), rgb(9 11 16 / 80%));
+    box-shadow: -26px 0 70px rgb(0 0 0 / 32%);
+    color: white;
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
+    backdrop-filter: blur(24px) saturate(135%);
+    transform: translateX(100%);
+    transition: transform 300ms cubic-bezier(.2, .72, .2, 1);
+  }
+
+  .mobile-menu.is-open {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+
+  .mobile-menu.is-open .mobile-menu-backdrop {
+    opacity: 1;
+  }
+
+  .mobile-menu.is-open .mobile-drawer {
+    transform: translateX(0);
+  }
+
+  .mobile-nav-card {
+    border: 1px solid rgb(255 255 255 / 10%);
+    background: rgb(255 255 255 / 5.5%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 5%),
+      0 20px 50px rgb(0 0 0 / 20%);
+  }
+
+  .mobile-nav-link {
+    border-bottom: 1px solid rgb(255 255 255 / 7%);
+    transition: color 180ms ease, background-color 180ms ease;
+  }
+
+  .mobile-nav-link:last-child {
+    border-bottom: 0;
+  }
+
+  .mobile-nav-link:hover,
+  .mobile-nav-link:focus-visible {
+    color: white;
+    background: rgb(255 255 255 / 5%);
+  }
+
+  .mobile-nav-link[data-active="true"] {
+    color: white;
+    background: linear-gradient(90deg, rgb(255 105 91 / 10%), transparent 72%);
+  }
+
+  .mobile-nav-link[data-active="true"] .mobile-nav-icon {
+    color: #ff695b;
+    background: rgb(255 105 91 / 12%);
+  }
+
+  .mobile-nav-signal {
+    width: 1.4rem;
+    opacity: 0;
+    transform: translateX(0.35rem);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .mobile-nav-signal > span {
+    position: relative;
+    width: 100%;
+    height: 1px;
+    background: #ff695b;
+    box-shadow: 0 0 10px rgb(255 105 91 / 65%);
+  }
+
+  .mobile-nav-signal > span::after {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: #ff695b;
+    box-shadow: 0 0 9px rgb(255 105 91 / 80%);
+    content: "";
+    transform: translateY(-50%);
+  }
+
+  .mobile-nav-link[data-active="true"] .mobile-nav-signal {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-menu,
+    .mobile-menu-backdrop,
+    .mobile-drawer {
+      transition: none;
+    }
   }
 </style>

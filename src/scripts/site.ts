@@ -4,27 +4,92 @@ import "aplayer/dist/APlayer.min.css";
 const menuToggle = document.querySelector<HTMLButtonElement>("#menu-toggle");
 const mobileMenu = document.querySelector<HTMLElement>("#mobile-menu");
 const siteHeader = document.querySelector<HTMLElement>("#site-header");
+const menuDismiss = mobileMenu?.querySelector<HTMLElement>("[data-menu-dismiss]");
+const mobileNavLinks = [...(mobileMenu?.querySelectorAll<HTMLAnchorElement>("[data-mobile-nav]") ?? [])];
+let menuReturnFocus: HTMLElement | null = null;
 
-function closeMenu() {
+function isMenuOpen() {
+  return menuToggle?.getAttribute("aria-expanded") === "true";
+}
+
+function closeMenu(restoreFocus = true) {
   if (!menuToggle || !mobileMenu) return;
+  const wasOpen = isMenuOpen();
+  if (wasOpen && mobileMenu.contains(document.activeElement)) {
+    menuToggle.focus({ preventScroll: true });
+  }
   menuToggle.setAttribute("aria-expanded", "false");
   menuToggle.setAttribute("aria-label", "打开导航菜单");
-  mobileMenu.classList.add("invisible", "translate-y-3", "opacity-0");
-  mobileMenu.classList.remove("visible", "translate-y-0", "opacity-100");
+  mobileMenu.setAttribute("aria-hidden", "true");
+  mobileMenu.classList.remove("is-open");
   document.body.classList.remove("menu-open");
+  if (wasOpen && restoreFocus) {
+    (menuReturnFocus ?? menuToggle).focus({ preventScroll: true });
+  }
+  menuReturnFocus = null;
+}
+
+function openMenu() {
+  if (!menuToggle || !mobileMenu) return;
+  menuReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : menuToggle;
+  menuToggle.setAttribute("aria-expanded", "true");
+  menuToggle.setAttribute("aria-label", "关闭导航菜单");
+  mobileMenu.setAttribute("aria-hidden", "false");
+  mobileMenu.classList.add("is-open");
+  document.body.classList.add("menu-open");
+  requestAnimationFrame(() => mobileNavLinks[0]?.focus({ preventScroll: true }));
 }
 
 menuToggle?.addEventListener("click", () => {
-  const open = menuToggle.getAttribute("aria-expanded") === "true";
-  if (open) {
+  if (isMenuOpen()) {
     closeMenu();
     return;
   }
-  menuToggle.setAttribute("aria-expanded", "true");
-  menuToggle.setAttribute("aria-label", "关闭导航菜单");
-  mobileMenu?.classList.remove("invisible", "translate-y-3", "opacity-0");
-  mobileMenu?.classList.add("visible", "translate-y-0", "opacity-100");
-  document.body.classList.add("menu-open");
+  openMenu();
+});
+
+menuDismiss?.addEventListener("click", () => closeMenu());
+
+mobileNavLinks.forEach((link) => {
+  if (link.dataset.scrollTarget) return;
+  link.addEventListener("click", () => closeMenu(false));
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!isMenuOpen() || !siteHeader) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeMenu();
+    return;
+  }
+  if (event.key !== "Tab") return;
+
+  const focusable = [...siteHeader.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => {
+    const style = window.getComputedStyle(element);
+    return (
+      element.tabIndex >= 0 &&
+      element.getClientRects().length > 0 &&
+      style.visibility !== "hidden" &&
+      style.display !== "none"
+    );
+  });
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (!first || !last) return;
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth >= 768 && isMenuOpen()) closeMenu(false);
 });
 
 document.querySelectorAll<HTMLElement>("[data-scroll-target]").forEach((link) => {
@@ -56,7 +121,10 @@ const visibleSections = new Map<string, IntersectionObserverEntry>();
 
 function updateActiveNav(sectionId: string) {
   navLinks.forEach((link) => {
-    link.dataset.active = String(link.dataset.nav === sectionId);
+    const active = link.dataset.nav === sectionId;
+    link.dataset.active = String(active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
 }
 

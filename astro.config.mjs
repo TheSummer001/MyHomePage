@@ -20,6 +20,10 @@ export default defineConfig({
           "code-xml",
           "database",
           "external-link",
+          "activity",
+          "file-text",
+          "folder-open",
+          "home",
           "languages",
           "layers-3",
           "leaf",
@@ -32,6 +36,7 @@ export default defineConfig({
           "play",
           "shapes",
           "terminal",
+          "user",
           "x",
         ],
         "simple-icons": [
