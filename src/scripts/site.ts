@@ -219,6 +219,61 @@ const musicErrorIcon =
 const musicRetryIcon =
   document.querySelector<HTMLElement>("#music-retry-icon")?.innerHTML.trim() || "";
 
+type MusicRuntimeValue = string | number | boolean | null;
+type MusicRuntimeDetails = Record<string, MusicRuntimeValue>;
+
+interface MusicRuntimeEvent {
+  name: string;
+  runId: string;
+  at: number;
+  details: MusicRuntimeDetails;
+  visible: MusicRuntimeDetails;
+}
+
+interface MusicRuntimeDebug {
+  version: 1;
+  events: MusicRuntimeEvent[];
+  snapshot: MusicRuntimeDetails;
+  reset: () => void;
+}
+
+const musicRuntimeHost = window as Window & {
+  __TOOONRAN_MUSIC_RUNTIME__?: MusicRuntimeDebug;
+};
+
+function readMusicVisibleState(): MusicRuntimeDetails {
+  return {
+    status: musicStatus?.textContent?.trim() || "",
+    statusHidden: musicStatus?.hidden ?? false,
+    trackState: trackContainer?.dataset.state || "",
+    ariaBusy: trackContainer?.getAttribute("aria-busy") === "true",
+  };
+}
+
+const musicRuntime: MusicRuntimeDebug = {
+  version: 1,
+  events: [],
+  snapshot: {},
+  reset() {
+    this.events.length = 0;
+    this.snapshot = readMusicVisibleState();
+  },
+};
+
+musicRuntimeHost.__TOOONRAN_MUSIC_RUNTIME__ = musicRuntime;
+const musicRuntimeRunId =
+  window.crypto?.randomUUID?.() ?? `music-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function recordMusicRuntime(name: string, details: MusicRuntimeDetails = {}) {
+  const visible = readMusicVisibleState();
+  const event = { name, runId: musicRuntimeRunId, at: Date.now(), details, visible };
+  musicRuntime.events.push(event);
+  if (musicRuntime.events.length > 120) musicRuntime.events.shift();
+  musicRuntime.snapshot = { ...visible, ...details };
+  console.info("[music-runtime]", event);
+  window.dispatchEvent(new CustomEvent("music-runtime", { detail: event }));
+}
+
 interface Track {
   id: string;
   name: string;
@@ -321,6 +376,12 @@ function renderTracks(tracks: Track[], playTrack: (index: number) => void) {
     const index = Number(card.dataset.trackIndex);
     card.addEventListener("click", () => {
       if (trackContainer.dataset.dragged === "true") return;
+      const track = tracks[index];
+      recordMusicRuntime("track.click", {
+        index,
+        trackId: track?.id || null,
+        trackName: track?.name || null,
+      });
       playTrack(index);
       card.blur();
     });
@@ -355,22 +416,33 @@ function renderTracks(tracks: Track[], playTrack: (index: number) => void) {
     .forEach((image) => coverObserver.observe(image));
 
   if (musicStatus) musicStatus.textContent = `已载入 ${tracks.length} 首歌曲，点击封面开始播放。`;
+  recordMusicRuntime("playlist.ready", { trackCount: tracks.length });
 }
 
 async function fetchPlaylist(bypassCache = false): Promise<Track[]> {
   for (const source of playlistSources) {
+    recordMusicRuntime("playlist.request.start", { source });
     try {
       const response = await fetch(source, {
         mode: "cors",
         ...(bypassCache ? { cache: "no-store" as const } : {}),
       });
+      recordMusicRuntime("playlist.request.response", { source, status: response.status, ok: response.ok });
       if (!response.ok) continue;
       const tracks = normalizeTracks(await response.json());
-      if (tracks.length) return tracks;
-    } catch {
+      if (tracks.length) {
+        recordMusicRuntime("playlist.request.success", { source, trackCount: tracks.length });
+        return tracks;
+      }
+    } catch (error) {
+      recordMusicRuntime("playlist.request.failure", {
+        source,
+        error: error instanceof Error ? error.message : String(error),
+      });
       // Try the next source.
     }
   }
+  recordMusicRuntime("playlist.failure", { reason: "all-sources-unavailable" });
   throw new Error("All playlist sources are unavailable");
 }
 
@@ -432,6 +504,7 @@ function renderPlaylistError(isRetry: boolean) {
       musicStatus.textContent = "正在重新连接歌单…";
     }
     trackContainer.setAttribute("aria-busy", "true");
+    recordMusicRuntime("playlist.retry", {});
     void initMusic(true);
   });
 }
@@ -440,6 +513,7 @@ async function initMusic(isRetry = false) {
   if (!trackContainer || !engineContainer) return;
 
   setMusicNavigationDisabled(true);
+  recordMusicRuntime("music.init.start", { isRetry });
 
   try {
     const tracks = await fetchPlaylist(isRetry);
@@ -453,6 +527,17 @@ async function initMusic(isRetry = false) {
       mutex: true,
       volume: 0.7,
     });
+    const recordPlayerEvent = (name: string, details: MusicRuntimeDetails = {}) => {
+      recordMusicRuntime(`player.${name}`, {
+        index: player.list.index,
+        trackId: tracks[player.list.index]?.id || null,
+        ...details,
+      });
+    };
+
+    ["ended", "waiting", "playing", "loadedmetadata", "canplay"].forEach((eventName) => {
+      player.audio.addEventListener(eventName, () => recordPlayerEvent(eventName));
+    });
     player.list.audios.forEach((audio) => {
       audio.url = "";
     });
@@ -460,6 +545,7 @@ async function initMusic(isRetry = false) {
       "error",
       (event) => {
         event.stopImmediatePropagation();
+        recordPlayerEvent("error", { autoAdvance: false });
         const failedTrack = tracks[player.list.index];
         if (failedTrack?.id) {
           resolvedUrls.delete(failedTrack.id);
@@ -471,15 +557,26 @@ async function initMusic(isRetry = false) {
         if (musicStatus) {
           musicStatus.textContent = "当前完整音源无法播放，已停止自动切换。";
         }
+        recordPlayerEvent("stopped", { reason: "audio-error", autoAdvance: false });
       },
       { capture: true },
     );
 
     function resolveTrackUrl(track: Track): Promise<string> {
-      if (!track.id) return Promise.reject(new Error("歌曲缺少可解析的网易云 ID"));
+      if (!track.id) {
+        const error = new Error("歌曲缺少可解析的网易云 ID");
+        recordMusicRuntime("source.request.failure", { trackId: null, error: error.message });
+        return Promise.reject(error);
+      }
       const cached = resolvedUrls.get(track.id);
       if (cached) return cached;
 
+      recordMusicRuntime("source.request.start", {
+        trackId: track.id,
+        endpoint: musicSourceEndpoint,
+        platform: musicSourcePlatform,
+        quality: musicSourceQuality,
+      });
       const request = fetch(musicSourceEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -490,6 +587,11 @@ async function initMusic(isRetry = false) {
         }),
       })
         .then(async (response) => {
+          recordMusicRuntime("source.request.response", {
+            trackId: track.id,
+            status: response.status,
+            ok: response.ok,
+          });
           const data: unknown = await response.json();
           if (!response.ok || !isRecord(data) || typeof data.url !== "string") {
             const message = isRecord(data) && typeof data.error === "string" ? data.error : "音源未返回播放地址";
@@ -507,11 +609,20 @@ async function initMusic(isRetry = false) {
               : musicSourceName;
           const quality = typeof data.quality === "string" ? data.quality : musicSourceQuality;
           resolvedSourceLabels.set(track.id, `${provider} / ${quality}`);
+          recordMusicRuntime("source.request.success", {
+            trackId: track.id,
+            provider,
+            quality,
+          });
           return parsedUrl.href;
         })
         .catch((error) => {
           resolvedUrls.delete(track.id);
           resolvedSourceLabels.delete(track.id);
+          recordMusicRuntime("source.request.failure", {
+            trackId: track.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           throw error;
         });
       resolvedUrls.set(track.id, request);
@@ -535,6 +646,7 @@ async function initMusic(isRetry = false) {
       const request = ++playRequest;
       if (!player.audio.paused) player.pause();
       if (musicStatus) musicStatus.textContent = `正在解析「${track.name}」的播放地址…`;
+      recordMusicRuntime("playback.request", { index, trackId: track.id, trackName: track.name });
 
       try {
         const url = await cacheTrackUrl(index);
@@ -542,6 +654,7 @@ async function initMusic(isRetry = false) {
 
         if (player.list.index !== index) player.list.switch(index);
         if (player.audio.src !== url) player.audio.src = url;
+        recordMusicRuntime("playback.play", { index, trackId: track.id });
         player.play();
         if (tracks.length > 1) void cacheTrackUrl((index + 1) % tracks.length).catch(() => {});
         if (musicStatus) {
@@ -550,6 +663,7 @@ async function initMusic(isRetry = false) {
             `${musicSourceName} / ${musicSourcePlatform.toUpperCase()} ${musicSourceQuality}`;
           musicStatus.textContent = `正在通过 ${sourceLabel} 音源播放。`;
         }
+        recordMusicRuntime("playback.visible", { index, trackId: track.id });
       } catch (error) {
         if (request !== playRequest) return;
         player.pause();
@@ -557,6 +671,12 @@ async function initMusic(isRetry = false) {
         if (musicStatus) {
           musicStatus.textContent = "完整音源暂时不可用，已停止播放以避免使用短试听。";
         }
+        recordMusicRuntime("playback.failure", {
+          index,
+          trackId: track.id,
+          error: error instanceof Error ? error.message : String(error),
+          autoAdvance: false,
+        });
       }
     }
 
@@ -575,16 +695,21 @@ async function initMusic(isRetry = false) {
 
     player.on("play", () => {
       updateMeta();
+      recordPlayerEvent("play");
       playerPlayIcon?.classList.add("hidden");
       playerPauseIcon?.classList.remove("hidden");
       playerToggle?.setAttribute("aria-label", "暂停");
     });
     player.on("pause", () => {
+      recordPlayerEvent("pause");
       playerPlayIcon?.classList.remove("hidden");
       playerPauseIcon?.classList.add("hidden");
       playerToggle?.setAttribute("aria-label", "播放");
     });
-    player.on("listswitch", updateMeta);
+    player.on("listswitch", () => {
+      updateMeta();
+      recordPlayerEvent("listswitch", { autoAdvance: false });
+    });
     player.on("timeupdate", () => {
       const audio = player.audio;
       const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
@@ -598,6 +723,10 @@ async function initMusic(isRetry = false) {
   } catch (error) {
     console.warn("Playlist unavailable.", error);
     renderPlaylistError(isRetry);
+    recordMusicRuntime("music.init.failure", {
+      isRetry,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
